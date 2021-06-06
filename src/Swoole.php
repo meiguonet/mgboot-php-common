@@ -4,9 +4,12 @@ namespace mgboot\common;
 
 
 use Closure;
+use Throwable;
 
 final class Swoole
 {
+    private static mixed $server = null;
+
     private static array $tcpClientSettings = [
         'connect_timeout' => 2.0,
         'write_timeout' => 5.0,
@@ -22,6 +25,63 @@ final class Swoole
 
     private function __clone()
     {
+    }
+
+    public static function setServer(mixed $server): void
+    {
+        self::$server = $server;
+    }
+
+    public static function isSwooleHttpRequest(mixed $arg0): bool
+    {
+        if (!is_object($arg0)) {
+            return false;
+        }
+
+        return str_ends_with(get_class($arg0), "Swoole\\Http\\Request");
+    }
+
+    public static function isSwooleHttpResponse(mixed $arg0): bool
+    {
+        if (!is_object($arg0)) {
+            return false;
+        }
+
+        return str_ends_with(get_class($arg0), "Swoole\\Http\\Response");
+    }
+
+    public static function getWorkerId(): int
+    {
+        $server = self::$server;
+
+        if (!is_object($server) || !property_exists($server, 'worker_id')) {
+            return -1;
+        }
+
+        $workerId = Cast::toInt($server->worker_id);
+        return $workerId >= 0 ? $workerId : -1;
+    }
+
+    public static function inTaskWorker(): bool
+    {
+        $workerId = self::getWorkerId();
+
+        if ($workerId < 0) {
+            return false;
+        }
+
+        $server = self::$server;
+
+        if (!is_object($server) || !property_exists($server, 'taskworker')) {
+            return false;
+        }
+
+        return Cast::toBoolean($server->taskworker);
+    }
+
+    public static function inCoroutineMode(): bool
+    {
+        return self::getCoroutineId() >= 0;
     }
 
     /** @noinspection PhpFullyQualifiedNameUsageInspection */
@@ -204,5 +264,16 @@ final class Swoole
     public static function sleep(float $seconds): void
     {
         \Swoole\Coroutine::sleep($seconds);
+    }
+
+    /** @noinspection PhpFullyQualifiedNameUsageInspection */
+    private static function getCoroutineId(): int
+    {
+        try {
+            $cid = \Swoole\Coroutine::getCid();
+            return is_int($cid) && $cid >= 0 ? $cid : -1;
+        } catch (Throwable) {
+            return -1;
+        }
     }
 }
