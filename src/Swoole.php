@@ -32,6 +32,11 @@ final class Swoole
         self::$server = $server;
     }
 
+    public static function getServer(): mixed
+    {
+        return self::$server;
+    }
+
     public static function isSwooleHttpRequest(mixed $arg0): bool
     {
         if (!is_object($arg0)) {
@@ -266,6 +271,12 @@ final class Swoole
         \Swoole\Coroutine::sleep($seconds);
     }
 
+    public static function buildGlobalVarKey(): string
+    {
+        $workerId = self::getWorkerId();
+        return $workerId >= 0 ? "worker$workerId" : 'noworker';
+    }
+
     /** @noinspection PhpFullyQualifiedNameUsageInspection */
     private static function getCoroutineId(): int
     {
@@ -275,11 +286,5 @@ final class Swoole
         } catch (Throwable) {
             return -1;
         }
-    }
-
-    public static function buildGlobalVarKey(): string
-    {
-        $workerId = self::getWorkerId();
-        return $workerId >= 0 ? "worker$workerId" : 'noworker';
     }
 }

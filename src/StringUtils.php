@@ -215,6 +215,12 @@ final class StringUtils
         }
     }
 
+    public static function toTimestamp(string $str): int
+    {
+        $d1 = self::toDateTime($str);
+        return $d1 instanceof DateTime ? $d1->getTimestamp() : 0;
+    }
+
     public static function isNationalPhoneNumber(string $str): bool
     {
         if (empty($str)) {
