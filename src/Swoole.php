@@ -276,4 +276,10 @@ final class Swoole
             return -1;
         }
     }
+
+    public static function buildGlobalVarKey(): string
+    {
+        $workerId = self::getWorkerId();
+        return $workerId >= 0 ? "worker$workerId" : 'noworker';
+    }
 }
