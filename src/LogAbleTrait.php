@@ -9,7 +9,6 @@ trait LogAbleTrait
 {
     private ?LoggerInterface $logger = null;
     private bool $enableLogging = true;
-    private string $logChannel = 'runtime';
 
     public function writeDebugLog(string $log, ?array $context = null, bool $force = false): void
     {
