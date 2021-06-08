@@ -84,6 +84,17 @@ final class Swoole
         return Cast::toBoolean($server->taskworker);
     }
 
+    /** @noinspection PhpFullyQualifiedNameUsageInspection */
+    public static function getCoroutineId(): int
+    {
+        try {
+            $cid = \Swoole\Coroutine::getCid();
+            return is_int($cid) && $cid >= 0 ? $cid : -1;
+        } catch (Throwable) {
+            return -1;
+        }
+    }
+
     public static function inCoroutineMode(bool $notTaskWorker = false): bool
     {
         if (self::getCoroutineId() < 0) {
@@ -282,16 +293,5 @@ final class Swoole
         }
 
         return $workerId >= 0 ? "worker$workerId" : 'noworker';
-    }
-
-    /** @noinspection PhpFullyQualifiedNameUsageInspection */
-    private static function getCoroutineId(): int
-    {
-        try {
-            $cid = \Swoole\Coroutine::getCid();
-            return is_int($cid) && $cid >= 0 ? $cid : -1;
-        } catch (Throwable) {
-            return -1;
-        }
     }
 }
