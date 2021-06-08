@@ -107,7 +107,7 @@ final class ReflectUtils
             }
 
             $s1 = StringUtils::ensureLeft($fieldName, 'is');
-            $s2 = StringUtils::ensureLeft($method->getName(), 'is');
+            $s2 = StringUtils::ensureLeft(strtolower($method->getName()), 'is');
 
             if ($s1 === $s2) {
                 $getter = $method;
