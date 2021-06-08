@@ -17,6 +17,15 @@ final class ArrayUtils
     {
     }
 
+    public static function first(array $arr, callable $callback): mixed
+    {
+        if (empty($arr) || !self::isList($arr)) {
+            return null;
+        }
+
+        return collect($arr)->first($callback);
+    }
+
     public static function camelCaseKeys(array $arr): array
     {
         if (empty($arr)) {

@@ -65,15 +65,23 @@ final class ReflectUtils
         return null;
     }
 
-    public static function getGetter(ReflectionProperty $property, bool $strictMode = false): ?ReflectionMethod
+    /**
+     * @param ReflectionProperty $property
+     * @param ReflectionMethod[] $methods
+     * @param bool $strictMode
+     * @return ReflectionMethod|null
+     */
+    public static function getGetter(ReflectionProperty $property, array $methods = [], bool $strictMode = false): ?ReflectionMethod
     {
         $fieldType = $property->getType();
         $fieldName = strtolower($property->getName());
 
-        try {
-            $methods = $property->getDeclaringClass()->getMethods(ReflectionMethod::IS_PUBLIC);
-        } catch (Throwable) {
-            $methods = [];
+        if (empty($methods)) {
+            try {
+                $methods = $property->getDeclaringClass()->getMethods(ReflectionMethod::IS_PUBLIC);
+            } catch (Throwable) {
+                $methods = [];
+            }
         }
 
         if (empty($methods)) {
@@ -110,15 +118,23 @@ final class ReflectUtils
         return $getter;
     }
 
-    public static function getSetter(ReflectionProperty $property, bool $strictMode = false): ?ReflectionMethod
+    /**
+     * @param ReflectionProperty $property
+     * @param ReflectionMethod[] $methods
+     * @param bool $strictMode
+     * @return ReflectionMethod|null
+     */
+    public static function getSetter(ReflectionProperty $property, array $methods = [], bool $strictMode = false): ?ReflectionMethod
     {
         $fieldType = $property->getType();
         $fieldName = strtolower($property->getName());
 
-        try {
-            $methods = $property->getDeclaringClass()->getMethods(ReflectionMethod::IS_PUBLIC);
-        } catch (Throwable) {
-            $methods = [];
+        if (empty($methods)) {
+            try {
+                $methods = $property->getDeclaringClass()->getMethods(ReflectionMethod::IS_PUBLIC);
+            } catch (Throwable) {
+                $methods = [];
+            }
         }
 
         if (empty($methods)) {

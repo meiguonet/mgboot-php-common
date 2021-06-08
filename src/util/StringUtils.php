@@ -931,4 +931,17 @@ final class StringUtils
         $regexDingbats = '/[\x{2700}-\x{27BF}]/u';
         return preg_replace($regexDingbats, '', $str);
     }
+
+    public static function camelCase(string $str): string
+    {
+        if (empty($str)) {
+            return $str;
+        }
+
+        $str = trim($str);
+        $str = strtr($str, ['-' => ' ', '_' => ' ']);
+        $str = preg_replace(Regexp::SPACE_SEP, ' ', $str);
+        $str = str_replace(' ', '', ucwords($str));
+        return lcfirst($str);
+    }
 }
