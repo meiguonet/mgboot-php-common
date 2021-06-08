@@ -11,7 +11,7 @@
   ],
   "autoload": {
     "psr-4": {
-      "mgboot\\common\\": "src/"
+      "mgboot\\": "src/"
     }
   },
   "require": {

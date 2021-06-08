@@ -1,14 +1,18 @@
 <?php
 
-namespace mgboot\common;
+namespace mgboot;
 
+use mgboot\util\ArrayUtils;
+use mgboot\util\FileUtils;
+use mgboot\util\StringUtils;
 use Symfony\Component\Yaml\Yaml;
 use Throwable;
 
 final class AppConf
 {
     private static string $env = 'dev';
-    private static string $cacheFilepath = '';
+    private static bool $cacheEnabled = false;
+    private static string $cacheDir = '';
     private static array $data = [];
 
     public static function setEnv(string $env): void
@@ -22,72 +26,39 @@ final class AppConf
         return self::$env;
     }
     
-    public static function setCacheFilepath($filepath): void
+    public static function enableCache(string $cacheDir): void
     {
-        self::$cacheFilepath = $filepath;
+        if (self::$env !== 'dev' || $cacheDir === '' || !is_dir($cacheDir) || !is_writable($cacheDir)) {
+            return;
+        }
+
+        self::$cacheEnabled = true;
+        self::$cacheDir = $cacheDir;
     }
 
-    public static function init(?int $workerId = null): array
+    public static function init(): array
     {
-        if (self::$env === 'dev') {
-            return [];
-        }
-
-        $key = is_int($workerId) && $workerId >= 0 ? "worker$workerId" : 'noworker';
-
-        if (is_int($workerId) && $workerId >= 0) {
-            $data = self::getData();
-        } else {
-            $data = self::getFromCacheFile();
-
-            if (empty($data)) {
-                $data = self::getData();
-                self::writeToCacheFile($data);
-            }
-        }
-
-        self::$data[$key] = $data;
+        $data = self::getDataFromCache();
+        self::$data = $data;
         return $data;
     }
 
     public static function clearCache(): void
     {
-        if (self::$env === 'dev' || Swoole::getWorkerId() < 0) {
+        $dir = self::$cacheDir;
+        $cacheFile = "$dir/appconf.php";
+
+        if (!is_file($cacheFile)) {
             return;
         }
 
-        $cacheFilepath = self::$cacheFilepath;
-        
-        if (empty($cacheFilepath)) {
-            return;
-        }
-
-        $cacheFilepath = FileUtils::getRealpath($cacheFilepath);
-
-        if (is_file($cacheFilepath)) {
-            unlink($cacheFilepath);
-        }
+        unlink($cacheFile);
     }
 
-    public static function get(string $key, bool $ignoreCache = false): mixed
+    public static function get(string $key): mixed
     {
-        if (self::$env === 'dev') {
-            $ignoreCache = true;
-        }
-
-        if ($ignoreCache) {
-            $data = self::getData();
-        } else {
-            $mapKey = Swoole::buildGlobalVarKey();
-            $data = self::$data[$mapKey];
-
-            if (!is_array($data) || empty($data)) {
-                $data = self::init();
-            }
-        }
-
         if (!str_contains($key, '.')) {
-            return $data[$key] ?? null;
+            return self::getValueInternal($key);
         }
 
         $lastKey = StringUtils::substringAfterLast($key, '.');
@@ -96,100 +67,77 @@ final class AppConf
 
         foreach ($keys as $i => $key) {
             if ($i === 0) {
-                $map1 = $data[$key] ?? [];
+                $map1 = self::getValueInternal($key);
                 continue;
             }
 
-            $map1 = is_array($map1) && isset($map1[$key]) ? $map1[$key] : [];
+            if (!is_array($map1) || empty($map1)) {
+                break;
+            }
+
+            $map1 = self::getValueInternal($key, $map1);
         }
 
-        return is_array($map1) && isset($map1[$lastKey]) ? $map1[$lastKey] : null;
+        return self::getValueInternal($lastKey, $map1);
     }
 
-    public static function getAssocArray(string $key, bool $ignoreCache = false): array
+    public static function getAssocArray(string $key): array
     {
-        $map1 = self::get($key, $ignoreCache);
+        $map1 = self::get($key);
         return ArrayUtils::isAssocArray($map1) ? $map1 : [];
     }
 
-    public static function getInt(string $key, int $default = PHP_INT_MIN, bool $ignoreCache = false): int
+    public static function getInt(string $key, int $defaultValue = PHP_INT_MIN): int
     {
-        return Cast::toInt(self::get($key, $ignoreCache), $default);
+        return Cast::toInt(self::get($key), $defaultValue);
     }
 
-    public static function getFloat(string $key, float $default = PHP_FLOAT_MIN, bool $ignoreCache = false): float
+    public static function getFloat(string $key, float $defaultValue = PHP_FLOAT_MIN): float
     {
-        return Cast::toFloat(self::get($key, $ignoreCache), $default);
+        return Cast::toFloat(self::get($key), $defaultValue);
     }
 
-    public static function getString(string $key, string $default = '', bool $ignoreCache = false): string
+    public static function getString(string $key, string $defaultValue = ''): string
     {
-        return Cast::toString(self::get($key, $ignoreCache), $default);
+        return Cast::toString(self::get($key), $defaultValue);
     }
 
-    public static function getBoolean(string $key, bool $default = false, bool $ignoreCache = false): bool
+    public static function getBoolean(string $key, bool $defaultValue = false): bool
     {
-        return Cast::toBoolean(self::get($key, $ignoreCache), $default);
+        return Cast::toBoolean(self::get($key), $defaultValue);
     }
 
-    public static function getDuration(string $key, bool $ignoreCache = false): int
+    public static function getDuration(string $key): int
     {
-        return Cast::toDuration(self::get($key, $ignoreCache));
+        return StringUtils::toDuration(self::getString($key));
     }
 
-    public static function getDataSize(string $key, bool $ignoreCache = false): int
+    public static function getDataSize(string $key): int
     {
-        return Cast::toDataSize(self::get($key, $ignoreCache));
+        return StringUtils::toDataSize(self::getString($key));
     }
 
     /**
      * @param string $key
-     * @param bool $ignoreCache
      * @return int[]
      */
-    public static function getIntArray(string $key, bool $ignoreCache = false): array
+    public static function getIntArray(string $key): array
     {
-        return Cast::toIntArray(self::get($key, $ignoreCache));
+        return Cast::toIntArray(self::get($key));
     }
 
     /**
      * @param string $key
-     * @param bool $ignoreCache
      * @return string[]
      */
-    public static function getStringArray(string $key, bool $ignoreCache = false): array
+    public static function getStringArray(string $key): array
     {
-        return Cast::toStringArray(self::get($key, $ignoreCache));
+        return Cast::toStringArray(self::get($key));
     }
 
-    public static function getMapList(string $key, bool $ignoreCache = false): array
+    public static function getMapList(string $key): array
     {
-        $list = self::get($key, $ignoreCache);
-
-        if (!is_array($list) || empty($list)) {
-            return [];
-        }
-
-        foreach ($list as $i => $item) {
-            if (!is_int($i) || !is_array($item)) {
-                return [];
-            }
-
-            $isAllStringKey = true;
-
-            foreach (array_keys($item) as $key) {
-                if (!is_string($key)) {
-                    $isAllStringKey = false;
-                    break;
-                }
-            }
-
-            if (!$isAllStringKey) {
-                return [];
-            }
-        }
-
-        return $list;
+        return Cast::toMapList(self::get($key));
     }
 
     private static function getData(): array
@@ -285,45 +233,48 @@ final class AppConf
         return $data;
     }
 
-    private static function getFromCacheFile(): array
+    private static function getDataFromCache(): array
     {
-        $cacheFile = self::$cacheFilepath;
-
-        if (empty($cacheFile)) {
-            return [];
+        if (!self::$cacheEnabled) {
+            return self::getData();
         }
 
-        $cacheFile = FileUtils::getRealpath($cacheFile);
+        $dir = self::$cacheDir;
+        $cacheFile = "$dir/appconf.php";
 
-        if (!is_file($cacheFile)) {
-            return [];
+        if (is_file($cacheFile)) {
+            try {
+                $data = include($cacheFile);
+            } catch (Throwable) {
+                $data = null;
+            }
+
+            if (ArrayUtils::isAssocArray($data) && !empty($data)) {
+                return $data;
+            }
+
+            $data = self::getData();
+
+            if (ArrayUtils::isAssocArray($data) && !empty($data)) {
+                self::writeToCache($data);
+            }
+
+            return $data;
         }
 
-        try {
-            /** @noinspection PhpIncludeInspection */
-            $data = include($cacheFile);
-        } catch (Throwable) {
-            $data = [];
+        $data = self::getData();
+
+        if (ArrayUtils::isAssocArray($data) && !empty($data)) {
+            self::writeToCache($data);
         }
 
-        return is_array($data) ? $data : [];
+        return $data;
     }
 
-    private static function writeToCacheFile(array $data): void
+    private static function writeToCache(array $data): void
     {
-        $cacheFile = self::$cacheFilepath;
-
-        if (empty($cacheFile)) {
-            return;
-        }
-
-        $cacheFile = FileUtils::getRealpath($cacheFile);
-
-        if (!self::buildCacheFileDir($cacheFile)) {
-            return;
-        }
-
-        $fp = fopen($cacheFile, 'w');
+        $dir = self::$cacheDir;
+        $fp = fopen("$dir/appconf.php", 'w');
 
         if (!is_resource($fp)) {
             return;
@@ -331,8 +282,7 @@ final class AppConf
 
         $sb = [
             "<?php\n",
-            'return ' . var_export($data, true) . ";\n",
-
+            'return ' . var_export($data, true) . ";\n"
         ];
 
         flock($fp, LOCK_EX);
@@ -341,18 +291,30 @@ final class AppConf
         fclose($fp);
     }
 
-    private static function buildCacheFileDir(string $cacheFile): bool
+    private static function getValueInternal(string $mapKey, array|null $data = null): mixed
     {
-        if (is_dir($cacheFile)) {
-            return false;
+        if (empty($data)) {
+            $data = self::$data;
         }
 
-        $dir = dirname($cacheFile);
-
-        if (is_dir($dir)) {
-            return true;
+        if (!is_array($data) || empty($data)) {
+            return null;
         }
 
-        return mkdir($dir, 0755, true);
+        $mapKey = strtolower(strtr($mapKey, ['-' => '', '_' => '']));
+
+        foreach ($data as $key => $val) {
+            if (!is_string($key) || $key === '') {
+                continue;
+            }
+
+            $key = strtolower(strtr($key, ['-' => '', '_' => '']));
+
+            if ($key === $mapKey) {
+                return $val;
+            }
+        }
+
+        return null;
     }
 }

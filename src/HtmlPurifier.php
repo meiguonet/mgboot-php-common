@@ -1,6 +1,6 @@
 <?php
 
-namespace mgboot\common;
+namespace mgboot;
 
 use HTMLPurifier as Purifier;
 use HTMLPurifier_Config as Config;

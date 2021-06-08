@@ -1,6 +1,9 @@
 <?php
 
-namespace mgboot\common;
+namespace mgboot;
+
+use mgboot\util\ArrayUtils;
+use mgboot\util\StringUtils;
 
 final class Cast
 {
@@ -62,7 +65,7 @@ final class Cast
 
         if (is_object($arg0) && method_exists($arg0, '__toString')) {
             $result = call_user_func([$arg0, '__toString']);
-            return is_string($result) ? $result : '';
+            return is_string($result) ? $result : $default;
         }
 
         return $default;
@@ -135,16 +138,17 @@ final class Cast
 
     public static function toStringArray(mixed $arg0): array
     {
-        if (!is_array($arg0)) {
+        if (empty($arg0) || !ArrayUtils::isList($arg0)) {
             return [];
         }
 
         $ret = [];
+        $s1 = '@~null~@';
 
         foreach ($arg0 as $value) {
-            $value = self::toString($value);
+            $value = self::toString($value, $s1);
 
-            if ($value === '') {
+            if ($value === $s1) {
                 continue;
             }
 
@@ -156,7 +160,7 @@ final class Cast
 
     public static function toMapList(mixed $arg0): array
     {
-        if (!is_array($arg0)) {
+        if (empty($arg0) || !ArrayUtils::isList($arg0)) {
             return [];
         }
 
@@ -177,11 +181,9 @@ final class Cast
                 }
             }
 
-            if (!$isAllStringKey) {
-                continue;
+            if ($isAllStringKey) {
+                $ret[] = $value;
             }
-
-            $ret[] = $value;
         }
 
         return $ret;
