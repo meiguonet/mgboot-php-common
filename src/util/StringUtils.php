@@ -405,8 +405,12 @@ final class StringUtils
 
     public static function isJson(string $str): bool
     {
-        $flag1 = !self::startsWith($str, '{') && !self::endsWith($str, '}');
-        $flag2 = !self::startsWith($str, '[') && !self::endsWith($str, ']');
+        if (empty($str)) {
+            return false;
+        }
+
+        $flag1 = str_starts_with($str, '{') && str_ends_with($str, '}');
+        $flag2 = str_starts_with($str, '[') && str_ends_with($str, ']');
 
         if (!$flag1 && !$flag2) {
             return false;
