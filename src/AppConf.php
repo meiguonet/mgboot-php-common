@@ -28,7 +28,7 @@ final class AppConf
     
     public static function enableCache(string $cacheDir): void
     {
-        if (self::$env !== 'dev' || $cacheDir === '' || !is_dir($cacheDir) || !is_writable($cacheDir)) {
+        if (self::$env === 'dev' || $cacheDir === '' || !is_dir($cacheDir) || !is_writable($cacheDir)) {
             return;
         }
 
@@ -249,13 +249,13 @@ final class AppConf
                 $data = null;
             }
 
-            if (ArrayUtils::isAssocArray($data) && !empty($data)) {
+            if (is_array($data) && !empty($data)) {
                 return $data;
             }
 
             $data = self::getData();
 
-            if (ArrayUtils::isAssocArray($data) && !empty($data)) {
+            if (is_array($data) && !empty($data)) {
                 self::writeToCache($data);
             }
 
@@ -264,7 +264,7 @@ final class AppConf
 
         $data = self::getData();
 
-        if (ArrayUtils::isAssocArray($data) && !empty($data)) {
+        if (is_array($data) && !empty($data)) {
             self::writeToCache($data);
         }
 
