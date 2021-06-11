@@ -2,6 +2,8 @@
 
 namespace mgboot\http\server;
 
+use mgboot\Cast;
+
 final class UploadedFile
 {
     private string $formFieldName;
