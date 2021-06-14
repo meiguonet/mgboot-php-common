@@ -27,7 +27,7 @@ final class Pager
             if ($recordTotal < 0) {
                 $recordTotal = $num;
             } else if ($currentPage < 0) {
-                $recordTotal = $num;
+                $currentPage = $num;
             } else if ($pageSize < 0) {
                 $pageSize = $num;
             } else if ($pageStep < 0) {
